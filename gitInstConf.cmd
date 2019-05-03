@@ -1,0 +1,397 @@
+@ECHO OFF
+SETLOCAL EnableDelayedExpansion
+
+SET HTTP_PROXY=
+SET HTTPS_PROXY=
+
+SET _ISADMIN=0
+call :checkadmin
+if %_ISADMIN% NEQ 1 echo Must run as admin^^!^^! & goto :Done
+
+powershell -Command "if ($PSVersionTable.PSVersion.Major -lt 5){exit 1}"
+if ERRORLEVEL 1 echo You need to install powershell 5 or later & goto Done
+
+REM Set default value here.  If the variable exists, do not change.  If not, override in CONF_ section below
+SET CONF_CHOCO_TOOLS=%ChocolateyToolsLocation%
+REM Special case:  ChocolateyToolsLocation is a user env var, not a system env var.
+REM                if another user has already created C:\Bin\chocotools\poshgit or C:\tools\poshgit, use that base
+if .%CONF_CHOCO_TOOLS%. EQU .. (
+  if EXIST C:\Bin\chocotools\poshgit (
+    SET CONF_CHOCO_TOOLS=C:\Bin\chocotools
+  ) else (
+    if EXIST C:\tools\poshgit (
+      SET CONF_CHOCO_TOOLS=C:\Tools
+    )
+  )
+)
+
+REM set/override CONF_ variables here:
+REM *****
+REM *****
+
+REM only override CONF_CHOCO_TOOLS if chocolatey is not installed yet
+if .%CONF_CHOCO_TOOLS%. EQU .. SET CONF_CHOCO_TOOLS=C:\Tools
+
+REM USER and EMAIL should be blank (set XXX=) for official machines since you really should commit/push from those machines
+SET CONF_GIT_USER=Change Me
+SET CONF_GIT_EMAIL=change.me@foo.com
+rem SET CONF_GIT_PROXY=http://proxy.foo.com:8080 rem proxy not needed anymore
+
+REM root folder in which you will call git clone.  Do not use a Drive root (e.g. C:\)
+SET CONF_POSHGIT_STARTDIR=c:\github
+
+REM End of block for users to edit
+REM *****
+REM *****
+
+SET CONF_
+
+SET INSTALL_=
+set /p INSTALL_="Are the above CONF_ variables correct (if not, edit this script)? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto Done
+
+
+:Chocolatey
+REM SET INST_CHOC_PROXY=powershell -NoProfile -ExecutionPolicy Bypass -Command "[System.Net.WebRequest]::DefaultWebProxy.Credentials = [System.Net.CredentialCache]::DefaultCredentials; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))"
+SET INST_CHOC_NOPROXY=powershell -NoProfile -InputFormat None -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))"
+
+echo Checking if chocolatey is installed...
+powershell -ExecutionPolicy Unrestricted -Command "choco -?" > NUL 2>&1
+if ERRORLEVEL 1 GOTO ChocoInstall
+
+echo Chocolatey is installed.
+echo Checking if chocolatey is outdated...
+
+choco list -l
+choco outdated -l
+REM TODO: check for updates, system config settings need to be re-applied after update
+
+SET UPGRADE_=
+set /p UPGRADE_="If there are any outdated packages listed above, do you want to update them ? [y/n] (select n for git or poshgit as they will need to be reconfigured)"
+if /I "%UPGRADE_:~0,1%" NEQ "y" Goto Git
+
+echo Use the command 'choco upgrade all -y'
+Goto Done
+
+:ChocoInstall
+echo Chocolatey is not installed.
+
+SET INSTALL_=
+set /p INSTALL_="Install Chocolatey to %ALLUSERSPROFILE%\chocolatey\bin ? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto Git
+
+set ChocolateyToolsLocation=%CONF_CHOCO_TOOLS%
+
+%INST_CHOC_NOPROXY%
+
+REM Add to current path
+SET PATH=%PATH%;%ALLUSERSPROFILE%\chocolatey\bin
+
+set ChocolateyToolsLocation=%CONF_CHOCO_TOOLS%
+md %CONF_CHOCO_TOOLS%
+setx ChocolateyToolsLocation "%CONF_CHOCO_TOOLS%"
+
+choco feature enable -n useRememberedArgumentsForUpgrades
+
+Goto Git
+
+:Git
+REM see https://chocolatey.org/packages/git.install for all options
+SET GIT_OPT=/GitOnlyOnPath /WindowsTerminal /NoShellIntegration
+
+choco outdated | find /i "git.install|"
+if not errorlevel 1 (goto GitInstall)
+
+git --version > NUL
+if NOT ERRORLEVEL 1 GOTO GitConfigure
+
+:GitInstall
+
+SET INSTALL_=
+set /p INSTALL_="Install/Upgrade Git in %ProgramFiles%\Git ? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitConfigure
+
+choco upgrade git --params="'%GIT_OPT%'" -y
+
+REM Add to current path
+SET PATH=%PATH%;%ProgramFiles%\Git\cmd
+
+:GitConfigure
+
+SET INSTALL_=
+set /p INSTALL_="[Re]Configure git with github for windows defaults, (e.g. p4, beyond compare, and visual studio merge/diff parameters) ? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitConfigureUser
+
+REM Set some default git options
+git config --system diff.algorithm histogram
+git config --system difftool.prompt false
+git config --system difftool.bc4.cmd "\"c:/program files (x86)/beyond compare 3/bcomp.exe\" \"$LOCAL\" \"$REMOTE\""
+git config --system difftool.p4.cmd "\"c:/program files/Perforce/p4merge.exe\" \"$LOCAL\" \"$REMOTE\""
+git config --system difftool.vs2012.cmd "\"c:/program files (x86)/microsoft visual studio 11.0/common7/ide/devenv.exe\" '//diff' \"$LOCAL\" \"$REMOTE\""
+git config --system difftool.vs2013.cmd "\"c:/program files (x86)/microsoft visual studio 12.0/common7/ide/devenv.exe\" '//diff' \"$LOCAL\" \"$REMOTE\""
+
+git config --system mergetool.prompt false
+git config --system mergetool.keepbackup false
+git config --system mergetool.bc3.cmd "\"c:/program files (x86)/beyond compare 3/bcomp.exe\" \"$LOCAL\" \"$REMOTE\" \"$BASE\" \"$MERGED\""
+git config --system mergetool.bc3.trustexitcode true
+git config --system mergetool.p4.cmd "\"c:/program files/Perforce/p4merge.exe\" \"$BASE\" \"$LOCAL\" \"$REMOTE\" \"$MERGED\""
+git config --system mergetool.p4.trustexitcode false
+
+:GitConfigureUser
+SET INSTALL_=
+set /p INSTALL_="[Re]Configure git with %CONF_GIT_USER%/%CONF_GIT_EMAIL% as the user/email ? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitConfigureDiff
+
+git config --global user.name "%CONF_GIT_USER%"
+git config --global user.email %CONF_GIT_EMAIL%
+rem git config --global http.proxy %CONF_GIT_PROXY%
+
+:GitConfigureDiff
+SET INSTALL_=
+set /p INSTALL_="[Re]Configure git with p4merge as merge/difftool ? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitConfigureLogAndColor
+
+git config --global diff.tool p4
+git config --global merge.tool p4
+
+:GitConfigureLogAndColor
+SET INSTALL_=
+set /p INSTALL_="[Re]Configure git with useful log alias and updated colors (improves readability of some dull-colored defaults) ? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitConfigureDiff
+
+REM Git Log and color settings
+git config --global alias.lg "log --graph --pretty=format:'%C(red bold)%%h%%Creset -%%C(yellow bold)%%d%%Creset %%s%%Cgreen(%%cr) %%C(cyan)<%%an>%%Creset' --abbrev-commit --date=relative'"
+git config --global alias.lg2 "log --graph --pretty=format:'%%C(red bold)%%h%%Creset -%%C(blue bold)%%d%%Creset %%s%%Cgreen(%%cr) %%C(cyan)<%%an>%%Creset'"
+git config --global alias.lg3 "log --graph --pretty=format:'%%C(red bold)%%h%%Creset -%%C(blue bold)%%d%%Creset %%s%%C(cyan)<%%an>%%Creset'"
+git config --global color.status.changed "red bold"
+git config --global color.status.untracked "red bold"
+git config --global color.status.added "green bold"
+git config --global color.branch.remote "red bold"
+
+:GitConfigureDiff
+SET INSTALL_=
+set /p INSTALL_="Refresh CA cert bundle with certs from the windows cert store ? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitPad
+
+REM export the windows certs
+REM maybe replace this step by using the schannel support available as of 2.14
+BundleWinCerts
+git config --system http.sslcainfo "C:/Program Files/Git/mingw64/ssl/certs/ca-bundle-plusWinRoot.crt"
+
+goto GitPad
+
+REM other stuff todo that GH4W did, but I'm not (yet):
+REM create ssh key
+REM editor env var
+REM alias.c=commit
+REM alias.co=checkout
+REM alias.dt=difftool
+REM alias.mt=mergetool
+REM alias.praise=blame
+REM alias.ff=merge --ff-only
+REM alias.st=status
+REM alias.sync=!git pull && git push
+
+REM These settings aren't set, either because they are defaults, or I still need to decide
+REM     apply.whitespace=nowarn                 (default: warn)     OK
+REM     core.editor=gitpad                      (default: n/a)      Set below
+REM     core.preloadindex=true                  (default: true)     OK
+REM     color.ui=true                           (default: true)     OK
+REM     pack.packsizelimit=2g                   (default: <none>)   OK
+REM     filter.ghcleansmudge.clean=cat          (default: )     TBD
+REM     filter.ghcleansmudge.smudge=cat         (default: )     TBD
+REM     push.default=upstream                   (default: simple)   OK
+
+REM these are set, which weren't by GH4W:
+REM     http.sslbackend=openssl                     (default: )     TBD
+REM     http.proxy=http://proxy.foo.com:8080   (default: n/a)          OK (set above)
+REM     core.hidedotfiles=dotGitOnly                (default: dotGitOnly)   OK
+
+:GitPad
+REM GitPad 1.4 not available on Chocloatey
+
+:GitPadMigrateFromAppDataFile
+if not exist "%APPDATA%\GitPad\GitPad.exe" Goto GitPadMigrateFromAppDataPath
+
+if not exist "%PROGRAMDATA%\GitPad\GitPad.exe" robocopy "%APPDATA%\GitPad" "%PROGRAMDATA%\GitPad"
+
+rd /s /q "%APPDATA%\GitPad"
+
+:GitPadMigrateFromAppDataPath
+if not exist "%PROGRAMDATA%\GitPad\GitPad.exe"  Goto GitPadInstall
+
+rem remove appdata\gitpad
+powershell -Command "$regKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey('SYSTEM\CurrentControlSet\Control\Session Manager\Environment', $true);$oldpath = $regKey.GetValue('Path', '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames);$pathvals = $oldpath -split ';';if ($pathvals -like '*appdata*gitpad'){$pathvals2 = $pathvals -notlike '*appdata*gitpad';$newpath=$pathvals2 -join ';';$newpath=$newpath -replace ';;',';';$regKey.SetValue('Path', $newpath, [Microsoft.Win32.RegistryValueKind]::ExpandString)}"
+
+goto GitPadAddToPath
+
+:GitPadInstall
+if exist "%PROGRAMDATA%\GitPad\GitPad.exe" Goto GitPadConfigureCheck
+
+SET INSTALL_=
+set /p INSTALL_="Install GitPad to %PROGRAMDATA%\GitPad ? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto Posh-Git
+
+powershell -Command "if (-not [Net.ServicePointManager]::SecurityProtocol.HasFlag([Net.SecurityProtocolType]::Tls12)) {[Net.ServicePointManager]::SecurityProtocol += [Net.SecurityProtocolType]::Tls12} (new-object System.Net.WebClient).Downloadfile('https://github.com/github/GitPad/releases/download/v1.4.0/Gitpad.zip', '%TEMP%\GitPad.zip');"
+powershell -Command "Expand-Archive '%TEMP%\GitPad.zip' -DestinationPath '%PROGRAMDATA%\GitPad' -Force"
+
+:GitPadAddToPath
+REM Add to current path
+SET PATH=%PATH%;%PROGRAMDATA%\GitPad
+
+powershell -Command "$regKey = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey('SYSTEM\CurrentControlSet\Control\Session Manager\Environment', $true);$oldpath = $regKey.GetValue('Path', '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames);$pathvals = $oldpath -split ';';if ($pathvals -notlike '*programdata*gitpad'){$newpath=$oldpath + ';%%PROGRAMDATA%%\GitPad';$newpath=$newpath -replace ';;',';';$regKey.SetValue('Path', $newpath, [Microsoft.Win32.RegistryValueKind]::ExpandString)}"
+
+
+call :broadcastSettingsChange
+
+goto GitPadConfigure
+
+:GitPadConfigureCheck
+
+git config -l | find "core.editor" > NUL
+if NOT ERRORLEVEL 1 Goto Posh-Git
+SET INSTALL_=
+set /p INSTALL_="Configure GitPad as the git editor (use notepad instead of Vim)? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto Posh-Git
+
+
+:GitPadConfigure
+git config --system core.editor gitpad
+
+goto Posh-Git
+
+:Posh-Git
+
+choco outdated | find /i "poshgit|"
+if not errorlevel 1 (goto Posh-GitInstall)
+
+powershell -ExecutionPolicy Unrestricted -Command "if (test-path '%CONF_CHOCO_TOOLS%\poshgit\dahlbyk-posh-git-*\profile.example.ps1'){exit 1}"
+if ERRORLEVEL 1 Goto Posh-GitConfigure
+
+:Posh-GitInstall
+
+SET INSTALL_=
+set /p INSTALL_="Install Posh-Git to %CONF_CHOCO_TOOLS%\poshgit (close any running instances if upgrade is needed)? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto Posh-GitConfigure
+
+rem get  current profile (if any)
+SET PROF_EXISTS=0
+if EXIST "%USERPROFILE%\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1" (
+  SET PROF_EXISTS=1
+) ELSE (
+ copy "%USERPROFILE%\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1" "%USERPROFILE%\Documents\WindowsPowerShell\tmp Microsoft.PowerShell_profile.ps1"
+)
+choco upgrade poshgit -y
+
+powershell -ExecutionPolicy Unrestricted -Command "if (get-service 'ssh-agent'-ErrorAction SilentlyContinue){$svc = get-service 'ssh-agent'; if ($svc.StartType -eq 'Disabled'){Set-Service ssh-agent -StartupType Manual}}"
+
+Goto Posh-GitConfigure
+
+:Posh-GitConfigure
+
+SET INSTALL_=
+set /p INSTALL_="[Re]Configure Posh-Git colors (improves readability of some dull-colored defaults) ? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto Shortcut
+
+rem restore previous profile/delete
+if "%PROF_EXISTS%" EQU "0" (
+  DEL "%USERPROFILE%\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1"
+) ELSE (
+  DEL "%USERPROFILE%\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1"
+  ren "%USERPROFILE%\Documents\WindowsPowerShell\tmpMicrosoft.PowerShell_profile.ps1" "Microsoft.PowerShell_profile.ps1"
+)
+
+rem tweak some posh-git prompt colors to improve readaility (IMHO)
+> "%~dp0\tmpCustomInstall.ps1" (
+echo function insert-line($file, $line, $match, $after^) {
+echo     $fc = gc $file;
+echo     $alreadydone = $fc ^| %%{$_ -match $match};
+echo     If($alreadydone -contains $false^){
+echo         $idx=($fc^|sls $after^).LineNumber;
+echo         $newfc=@(^);
+echo         0..($fc.Count-1^)^|%%{
+echo             if ($_ -eq $idx^){
+echo                 $newfc +=$line;
+echo             }
+echo             $newfc += $fc[$_];
+echo         }
+echo         $newfc ^| out-file $file;
+echo     }
+echo }
+echo $file = (gci '%CONF_CHOCO_TOOLS%\poshgit\dahlbyk-posh-git*\profile.example.ps1'^).FullName;
+echo insert-line $file '$Global:GitPromptSettings.LocalWorkingStatusForegroundColor  = [ConsoleColor]::Red' 'LocalWorkingStatusForegroundColor' 'GitPromptSettings.BranchBehindAndAheadDisplay';
+echo insert-line $file '$Global:GitPromptSettings.WorkingForegroundColor  = [ConsoleColor]::Red' 'WorkingForegroundColor' 'GitPromptSettings.LocalWorkingStatusForegroundColor';
+echo #insert-line $file '$env:LC_ALL=''C.UTF-8''' 'LC_ALL' 'GitPromptSettings.WorkingForegroundColor';
+)
+
+powershell -ExecutionPolicy Unrestricted -Command "& '%~dp0\tmpCustomInstall.ps1'"
+del "%~dp0\tmpCustomInstall.ps1"
+
+Goto Shortcut
+
+rem create powershell shortcut on desktop pointing to install path
+:Shortcut
+
+rem if exist "%USERPROFILE%\Desktop\PoshGitShell.lnk" Goto Done
+
+SET INSTALL_=
+set /p INSTALL_="[Re]Create Posh-Git shell shortcut on desktop (select y if poshgit was upgraded)? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto Done
+
+md %CONF_POSHGIT_STARTDIR%
+
+> "%~dp0\tmpCustomInstall.ps1" (
+echo $Home
+echo $file = (gci '%CONF_CHOCO_TOOLS%\poshgit\dahlbyk-posh-git*\profile.example.ps1'^).FullName;
+echo $WshShell = New-Object -comObject WScript.Shell
+echo $Shortcut = $WshShell.CreateShortcut("$Home\Desktop\PoshGitShell.lnk"^)
+echo $Shortcut.TargetPath = '%WINDIR%\System32\WindowsPowershell\v1.0\Powershell.exe'
+echo $Shortcut.Arguments = "-NoExit -ExecutionPolicy Unrestricted -File ""$file"" choco"
+echo $Shortcut.IconLocation = "%~dp0poshgit.ico"
+echo $Shortcut.WorkingDirectory = '%CONF_POSHGIT_STARTDIR%'
+echo $Shortcut.Save(^)
+)
+
+powershell -ExecutionPolicy Unrestricted -Command "& '%~dp0\tmpCustomInstall.ps1'"
+del "%~dp0\tmpCustomInstall.ps1"
+
+powershell -ExecutionPolicy Unrestricted -Command "& '%~dp0\pscolor.ps1' '%USERPROFILE%\Desktop\PoshGitShell.lnk'"
+
+Goto Done
+
+::UtilityFunctions
+
+:checkadmin
+openfiles > NUL 2>&1 
+if NOT %ERRORLEVEL% EQU 0 (
+SET _ISADMIN=0
+) else (
+SET _ISADMIN=1
+)
+goto :eof
+
+:broadcastSettingsChange
+> "%~dp0\tmpCustomInstall.ps1" (
+echo if (-not ("Win32.NativeMethods" -as [Type]^)^) {
+echo Add-Type -Namespace Win32 -Name NativeMethods -MemberDefinition @"
+echo [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto^)]
+echo public static extern IntPtr SendMessageTimeout(
+echo     IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam,
+echo     uint fuFlags, uint uTimeout, out UIntPtr lpdwResult^);
+echo "@
+echo }
+echo $HWND_BROADCAST = [IntPtr] 0xffff;
+echo $WM_SETTINGCHANGE = 0x1a;
+echo $result = [UIntPtr]::Zero
+echo [Win32.Nativemethods]::SendMessageTimeout($HWND_BROADCAST, $WM_SETTINGCHANGE, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref] $result^);
+)
+
+powershell -ExecutionPolicy Unrestricted -Command "& '%~dp0\tmpCustomInstall.ps1'"
+del "%~dp0\tmpCustomInstall.ps1"
+goto :eof
+
+:Done
+echo.
+echo Done
+
+ENDLOCAL
