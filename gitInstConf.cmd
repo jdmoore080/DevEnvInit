@@ -33,8 +33,8 @@ REM only override CONF_CHOCO_TOOLS if chocolatey is not installed yet
 if .%CONF_CHOCO_TOOLS%. EQU .. SET CONF_CHOCO_TOOLS=C:\Tools
 
 REM USER and EMAIL should be blank (set XXX=) for official machines since you really should commit/push from those machines
-SET CONF_GIT_USER=Change Me
-SET CONF_GIT_EMAIL=change.me@foo.com
+SET CONF_GIT_USER=Chris Conti
+SET CONF_GIT_EMAIL=cmconti@gmail.com
 rem SET CONF_GIT_PROXY=http://proxy.foo.com:8080 rem proxy not needed anymore
 
 REM root folder in which you will call git clone.  Do not use a Drive root (e.g. C:\)
@@ -97,7 +97,7 @@ Goto Git
 
 :Git
 REM see https://chocolatey.org/packages/git.install for all options
-SET GIT_OPT=/GitOnlyOnPath /WindowsTerminal /NoShellIntegration
+SET GIT_OPT=/GitOnlyOnPath /WindowsTerminal /NoShellIntegration /SChannel
 
 choco outdated | find /i "git.install|"
 if not errorlevel 1 (goto GitInstall)
@@ -157,7 +157,7 @@ git config --global merge.tool p4
 :GitConfigureLogAndColor
 SET INSTALL_=
 set /p INSTALL_="[Re]Configure git with useful log alias and updated colors (improves readability of some dull-colored defaults) ? [y/n]"
-if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitConfigureDiff
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitConfigureCerts
 
 REM Git Log and color settings
 git config --global alias.lg "log --graph --pretty=format:'%C(red bold)%%h%%Creset -%%C(yellow bold)%%d%%Creset %%s%%Cgreen(%%cr) %%C(cyan)<%%an>%%Creset' --abbrev-commit --date=relative'"
@@ -168,18 +168,26 @@ git config --global color.status.untracked "red bold"
 git config --global color.status.added "green bold"
 git config --global color.branch.remote "red bold"
 
-:GitConfigureDiff
+:GitConfigureCerts
 SET INSTALL_=
-set /p INSTALL_="Refresh CA cert bundle with certs from the windows cert store ? [y/n]"
-if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitPad
+set /p INSTALL_="Use OpenSSL and refresh CA cert bundle with certs from the windows cert store ? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitConfigureSChannel
 
 REM export the windows certs
-REM maybe replace this step by using the schannel support available as of 2.14
 BundleWinCerts
+git config --global http.sslBackend openssl
 git config --system http.sslcainfo "C:/Program Files/Git/mingw64/ssl/certs/ca-bundle-plusWinRoot.crt"
 
 goto GitPad
 
+:GitConfigureSChannel
+SET INSTALL_=
+set /p INSTALL_="Use schannel ? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitPad
+
+git config --global http.sslBackend schannel
+
+goto GitPad
 REM other stuff todo that GH4W did, but I'm not (yet):
 REM create ssh key
 REM editor env var
@@ -357,6 +365,7 @@ del "%~dp0\tmpCustomInstall.ps1"
 
 powershell -ExecutionPolicy Unrestricted -Command "& '%~dp0\pscolor.ps1' '%USERPROFILE%\Desktop\PoshGitShell.lnk'"
 
+rem todo: make sure font set to 14pt Consolas
 Goto Done
 
 ::UtilityFunctions
