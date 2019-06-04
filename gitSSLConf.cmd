@@ -11,7 +11,7 @@ if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitPad
 
 REM export the windows certs
 REM maybe replace this step by using the schannel support available as of 2.14
-BundleWinCerts
+BundleWinCerts "C:\Program Files\Git\mingw64\ssl\certs\ca-bundle.crt" "C:\Program Files\Git\mingw64\ssl\certs\ca-bundle-plusWinRoot.crt"
 git config --system http.sslcainfo "C:/Program Files/Git/mingw64/ssl/certs/ca-bundle-plusWinRoot.crt"
 
 :UtilityFunctions

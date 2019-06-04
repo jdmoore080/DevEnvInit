@@ -174,7 +174,8 @@ set /p INSTALL_="Use OpenSSL and refresh CA cert bundle with certs from the wind
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitConfigureSChannel
 
 REM export the windows certs
-BundleWinCerts
+BundleWinCerts "C:\Program Files\Git\mingw64\ssl\certs\ca-bundle.crt" "C:\Program Files\Git\mingw64\ssl\certs\ca-bundle-plusWinRoot.crt"
+
 git config --global http.sslBackend openssl
 git config --system http.sslcainfo "C:/Program Files/Git/mingw64/ssl/certs/ca-bundle-plusWinRoot.crt"
 
