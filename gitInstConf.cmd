@@ -218,6 +218,7 @@ REM     core.hidedotfiles=dotGitOnly                (default: dotGitOnly)   OK
 
 :GitPad
 REM GitPad 1.4 not available on Chocloatey
+REM GitPad 1.4 (official) targets .NET 2, so install modified version that targets .NET 4.5
 
 :GitPadMigrateFromAppDataFile
 if not exist "%APPDATA%\GitPad\GitPad.exe" Goto GitPadMigrateFromAppDataPath
@@ -241,8 +242,11 @@ SET INSTALL_=
 set /p INSTALL_="Install GitPad to %PROGRAMDATA%\GitPad ? [y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto Posh-Git
 
-powershell -Command "if (-not [Net.ServicePointManager]::SecurityProtocol.HasFlag([Net.SecurityProtocolType]::Tls12)) {[Net.ServicePointManager]::SecurityProtocol += [Net.SecurityProtocolType]::Tls12} (new-object System.Net.WebClient).Downloadfile('https://github.com/github/GitPad/releases/download/v1.4.0/Gitpad.zip', '%TEMP%\GitPad.zip');"
-powershell -Command "Expand-Archive '%TEMP%\GitPad.zip' -DestinationPath '%PROGRAMDATA%\GitPad' -Force"
+rem powershell -Command "if (-not [Net.ServicePointManager]::SecurityProtocol.HasFlag([Net.SecurityProtocolType]::Tls12)) {[Net.ServicePointManager]::SecurityProtocol += [Net.SecurityProtocolType]::Tls12} (new-object System.Net.WebClient).Downloadfile('https://github.com/github/GitPad/releases/download/v1.4.0/Gitpad.zip', '%TEMP%\GitPad.zip');"
+rem powershell -Command "Expand-Archive '%TEMP%\GitPad.zip' -DestinationPath '%PROGRAMDATA%\GitPad' -Force"
+
+md "%PROGRAMDATA%\GitPad"
+copy Gitpad.exe "%PROGRAMDATA%\GitPad"
 
 :GitPadAddToPath
 REM Add to current path
