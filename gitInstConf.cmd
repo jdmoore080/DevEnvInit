@@ -34,7 +34,7 @@ if .%CONF_CHOCO_TOOLS%. EQU .. SET CONF_CHOCO_TOOLS=C:\Tools
 
 REM USER and EMAIL should be blank (set XXX=) for official machines since you really should commit/push from those machines
 SET CONF_GIT_USER=Chris Conti
-SET CONF_GIT_EMAIL=cmconti@gmail.com
+SET CONF_GIT_EMAIL=cmconti@users.noreply.github.com
 rem SET CONF_GIT_PROXY=http://proxy.foo.com:8080 rem proxy not needed anymore
 
 REM root folder in which you will call git clone.  Do not use a Drive root (e.g. C:\)
