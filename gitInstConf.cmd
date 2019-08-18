@@ -230,7 +230,7 @@ rem https://stackoverflow.com/questions/10564/how-can-i-set-up-an-editor-to-work
 rem as of git for windows 2.5.3, notepad can be used as the editor (see https://github.com/git-for-windows/git/releases/tag/v2.5.3.windows.1)
 rem as of git for windows 2.16, git will warn if it is waiting for editor to close
 rem git 2.19.2 fixed a problem with wrapping that showed up when using notepad2 (?)
-rem
+rem ** just tested with git 2.22.0.  using notepad 3 still produces some weird messages in the UI and on the commandline, so disable for now.
 REM GitPad 1.4 not available on Chocloatey
 REM GitPad 1.4 (official) targets .NET 2, so install modified version that targets .NET 4.5
 
@@ -288,6 +288,7 @@ git config --system core.editor gitpad
 goto Posh-Git
 
 :NotepadAsEditor
+goto Posh-Git
 SET INSTALL_=
 set /p INSTALL_="Configure Notepad as the git editor ? [y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto Posh-Git
