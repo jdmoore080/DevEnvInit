@@ -11,6 +11,9 @@ if %_ISADMIN% NEQ 1 echo Must run as admin^^!^^! & goto :Done
 powershell -Command "if ($PSVersionTable.PSVersion.Major -lt 5){exit 1}"
 if ERRORLEVEL 1 echo You need to install powershell 5 or later & goto Done
 
+powershell -Command "$pol = get-executionpolicy;if (@('Unrestricted','Bypass') -notcontains $pol){exit 1}"
+if ERRORLEVEL 1 echo Powershell must have an execution policy of unrestricted or bypass for this tool to work. & goto Done
+
 REM Set default value here.  If the variable exists, do not change.  If not, override in CONF_ section below
 SET CONF_CHOCO_TOOLS=%ChocolateyToolsLocation%
 REM Special case:  ChocolateyToolsLocation is a user env var, not a system env var.
@@ -38,7 +41,7 @@ SET CONF_GIT_EMAIL=cmconti@users.noreply.github.com
 rem SET CONF_GIT_PROXY=http://proxy.foo.com:8080 rem proxy not needed anymore
 
 REM root folder in which you will call git clone.  Do not use a Drive root (e.g. C:\)
-SET CONF_POSHGIT_STARTDIR=c:\github
+SET CONF_POSHGIT_STARTDIR=c:\github-personal
 
 REM End of block for users to edit
 REM *****
@@ -60,17 +63,23 @@ powershell -ExecutionPolicy Unrestricted -Command "choco -?" > NUL 2>&1
 if ERRORLEVEL 1 GOTO ChocoInstall
 
 echo Chocolatey is installed.
-echo Checking if chocolatey is outdated...
+echo Checking if chocolatey or other apps are outdated...
 
+echo.
+echo Apps Installed via chocolatey:
 choco list -l
+
+echo.
+echo Apps with pending chocolatey updates:
 choco outdated -l
 REM TODO: check for updates, system config settings need to be re-applied after update
 
 SET UPGRADE_=
-set /p UPGRADE_="If there are any outdated packages listed above, do you want to update them ? [y/n] (select n for git or poshgit as they will need to be reconfigured)"
+set /p UPGRADE_="If there are any outdated packages listed above, do you want to update them outside of this tool before continuing? [y/n] (select n for git or poshgit as they will need to be reconfigured)"
 if /I "%UPGRADE_:~0,1%" NEQ "y" Goto Git
 
-echo Use the command 'choco upgrade all -y'
+echo To update all apps, use the command 'choco upgrade all -y'
+echo When finished, re-run this script.
 Goto Done
 
 :ChocoInstall
@@ -203,20 +212,25 @@ REM alias.sync=!git pull && git push
 
 REM These settings aren't set, either because they are defaults, or I still need to decide
 REM     apply.whitespace=nowarn                 (default: warn)     OK
-REM     core.editor=gitpad                      (default: n/a)      Set below
+REM     core.editor=gitpad                      (default: n/a)      Set below (optionally)
 REM     core.preloadindex=true                  (default: true)     OK
 REM     color.ui=true                           (default: true)     OK
 REM     pack.packsizelimit=2g                   (default: <none>)   OK
-REM     filter.ghcleansmudge.clean=cat          (default: )     TBD
-REM     filter.ghcleansmudge.smudge=cat         (default: )     TBD
+REM     filter.ghcleansmudge.clean=cat          (default: )         TBD
+REM     filter.ghcleansmudge.smudge=cat         (default: )         TBD
 REM     push.default=upstream                   (default: simple)   OK
 
 REM these are set, which weren't by GH4W:
-REM     http.sslbackend=openssl                     (default: )     TBD
-REM     http.proxy=http://proxy.foo.com:8080   (default: n/a)          OK (set above)
-REM     core.hidedotfiles=dotGitOnly                (default: dotGitOnly)   OK
+REM     http.sslbackend=openssl                (default: )          TBD
+REM     http.proxy=http://proxy.foo.com:8080   (default: n/a)       OK (set above)
+REM     core.hidedotfiles=dotGitOnly           (default: dotGitOnly)   OK
 
 :GitPad
+rem https://stackoverflow.com/questions/10564/how-can-i-set-up-an-editor-to-work-with-git-on-windows
+rem as of git for windows 2.5.3, notepad can be used as the editor (see https://github.com/git-for-windows/git/releases/tag/v2.5.3.windows.1)
+rem as of git for windows 2.16, git will warn if it is waiting for editor to close
+rem git 2.19.2 fixed a problem with wrapping that showed up when using notepad2 (?)
+rem
 REM GitPad 1.4 not available on Chocloatey
 REM GitPad 1.4 (official) targets .NET 2, so install modified version that targets .NET 4.5
 
@@ -240,7 +254,7 @@ if exist "%PROGRAMDATA%\GitPad\GitPad.exe" Goto GitPadConfigureCheck
 
 SET INSTALL_=
 set /p INSTALL_="Install GitPad to %PROGRAMDATA%\GitPad ? [y/n]"
-if /I "%INSTALL_:~0,1%" NEQ "y" Goto Posh-Git
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto NotepadAsEditor
 
 rem powershell -Command "if (-not [Net.ServicePointManager]::SecurityProtocol.HasFlag([Net.SecurityProtocolType]::Tls12)) {[Net.ServicePointManager]::SecurityProtocol += [Net.SecurityProtocolType]::Tls12} (new-object System.Net.WebClient).Downloadfile('https://github.com/github/GitPad/releases/download/v1.4.0/Gitpad.zip', '%TEMP%\GitPad.zip');"
 rem powershell -Command "Expand-Archive '%TEMP%\GitPad.zip' -DestinationPath '%PROGRAMDATA%\GitPad' -Force"
@@ -271,6 +285,17 @@ if /I "%INSTALL_:~0,1%" NEQ "y" Goto Posh-Git
 :GitPadConfigure
 git config --system core.editor gitpad
 
+goto Posh-Git
+
+:NotepadAsEditor
+SET INSTALL_=
+set /p INSTALL_="Configure Notepad as the git editor ? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto Posh-Git
+
+git config --system core.editor notepad
+
+rem todo:
+rem notepad++ (git config --global core.editor "'C:/Program Files (x86)/Notepad++/notepad++.exe' -multiInst -notabbar -nosession -noPlugin")
 goto Posh-Git
 
 :Posh-Git
