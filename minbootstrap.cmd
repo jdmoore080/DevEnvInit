@@ -17,13 +17,22 @@ rem choco upgrade googlechrome -y
 
 :::: Utilities + other
 choco upgrade 7zip.install -y
-choco upgrade notepad2-mod -y
+choco upgrade winmerge -y
+rem choco upgrade notepad2-mod -y
+choco upgrade notepad3 -y
 
 :::: configure
-UpdateINI -s Settings SaveRecentFiles 1 "%APPDATA%\Notepad2\Notepad2.ini"
-UpdateINI -s Settings SaveFindReplace 1 "%APPDATA%\Notepad2\Notepad2.ini"
-UpdateINI -s Settings TabsAsSpaces 1 "%APPDATA%\Notepad2\Notepad2.ini"
-UpdateINI -s Settings ViewWhiteSpace 1 "%APPDATA%\Notepad2\Notepad2.ini"
+rem notepad2-mod
+rem UpdateINI -s Settings SaveRecentFiles 1 "%APPDATA%\Notepad2\Notepad2.ini"
+rem UpdateINI -s Settings SaveFindReplace 1 "%APPDATA%\Notepad2\Notepad2.ini"
+rem UpdateINI -s Settings TabsAsSpaces 1 "%APPDATA%\Notepad2\Notepad2.ini"
+rem UpdateINI -s Settings ViewWhiteSpace 1 "%APPDATA%\Notepad2\Notepad2.ini"
+
+rem notepad3
+UpdateINI -s Settings SaveRecentFiles 1 "%APPDATA%\Rizonesoft\Notepad3\Notepad3.ini"
+UpdateINI -s Settings SaveFindReplace 1 "%APPDATA%\Rizonesoft\Notepad3\Notepad3.ini"
+UpdateINI -s Settings TabsAsSpaces 1 "%APPDATA%\Rizonesoft\Notepad3\Notepad3.ini"
+UpdateINI -s Settings ViewWhiteSpace 1 "%APPDATA%\Rizonesoft\Notepad3\Notepad3.ini"
 
 goto Done
 
