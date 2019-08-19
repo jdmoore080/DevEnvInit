@@ -44,12 +44,17 @@ REM only override CONF_CHOCO_TOOLS if chocolatey is not installed yet
 if .%CONF_CHOCO_TOOLS%. EQU .. SET CONF_CHOCO_TOOLS=C:\Tools
 
 REM USER and EMAIL should be blank (set XXX=) for official machines since you really should commit/push from those machines
-SET CONF_GIT_USER=Chris Conti
-SET CONF_GIT_EMAIL=cmconti@users.noreply.github.com
+SET CONF_GIT_DEFAULT_USER=Chris Conti
+SET CONF_GIT_DEFAULT_EMAIL=cmconti@users.noreply.github.com
 rem SET CONF_GIT_PROXY=http://proxy.foo.com:8080 rem proxy not needed anymore
 
 REM root folder in which you will call git clone.  Do not use a Drive root (e.g. C:\)
 SET CONF_POSHGIT_STARTDIR=c:\github-personal
+
+REM optional settings if a particular dir needs different git credentials for child repos
+SET CONF_GIT_SECONDARY_USER=Chris Conti
+SET CONF_GIT_SECONDARY_EMAIL=cmconti@users.noreply.github.com
+SET CONF_GIT_SECONDARY_PATH=C:/github-personal/
 
 REM End of block for users to edit
 REM *****
@@ -58,7 +63,7 @@ REM *****
 SET CONF_
 
 SET INSTALL_=
-set /p INSTALL_="Are the above CONF_ variables correct (if not, edit this script)? [y/n]"
+set /p INSTALL_="Are the above CONF_ variables correct (if not, edit this script)? n.b. _PERSONAL variables are optional and can be ignored[y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto Done
 
 
@@ -137,7 +142,7 @@ SET PATH=%PATH%;%ProgramFiles%\Git\cmd
 
 SET INSTALL_=
 set /p INSTALL_="[Re]Configure git with github for windows defaults, (e.g. p4, beyond compare, and visual studio merge/diff parameters) ? [y/n]"
-if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitConfigureUser
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitConfigureDefaultUser
 
 REM Set some default git options
 git config --system diff.algorithm histogram
@@ -154,14 +159,28 @@ git config --system mergetool.bc3.trustexitcode true
 git config --system mergetool.p4.cmd "\"c:/program files/Perforce/p4merge.exe\" \"$BASE\" \"$LOCAL\" \"$REMOTE\" \"$MERGED\""
 git config --system mergetool.p4.trustexitcode false
 
-:GitConfigureUser
+:GitConfigureDefaultUser
 SET INSTALL_=
-set /p INSTALL_="[Re]Configure git with %CONF_GIT_USER%/%CONF_GIT_EMAIL% as the user/email ? [y/n]"
+set /p INSTALL_="[Re]Configure git with %CONF_GIT_DEFAULT_USER%/%CONF_GIT_DEFAULT_EMAIL% as the default user/email ? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto :GitConfigureSecondaryUser
+
+git config --global user.name "%CONF_GIT_DEFAULT_USER%"
+git config --global user.email %CONF_GIT_DEFAULT_EMAIL%
+rem git config --global http.proxy %CONF_GIT_PROXY%
+
+:GitConfigureSecondaryUser
+echo if you have a path (CONF_GIT_SECONDARY_PATH=%CONF_GIT_SECONDARY_PATH%) under which git credentials need to be different, you can set them here.
+SET INSTALL_=
+set /p INSTALL_="[Re]Configure git with %CONF_GIT_SECONDARY_USER%/%CONF_GIT_SECONDARY_EMAIL% as the secondary user/email for repos under %CONF_GIT_SECONDARY_PATH%? [y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitConfigureDiff
 
-git config --global user.name "%CONF_GIT_USER%"
-git config --global user.email %CONF_GIT_EMAIL%
-rem git config --global http.proxy %CONF_GIT_PROXY%
+rem todo: don't override .gitconfig-secondary
+UpdateINI -s user name "%CONF_GIT_SECONDARY_USER%" "%USERPROFILE%\.gitconfig-secondary"
+UpdateINI -s user email "%CONF_GIT_SECONDARY_EMAIL%" "%USERPROFILE%\.gitconfig-secondary"
+rem convert crlf to lf
+rem powershell "$file='%USERPROFILE%\.gitconfig-secondary';$text = [IO.File]::ReadAllText($file) -replace '`r`n', '`n';[IO.File]::WriteAllText($file, $text)"
+git config --global includeIf."gitdir:%CONF_GIT_SECONDARY_PATH%".path ".gitconfig-secondary"
+
 
 :GitConfigureDiff
 SET INSTALL_=
@@ -262,7 +281,8 @@ if exist "%PROGRAMDATA%\GitPad\GitPad.exe" Goto GitPadConfigureCheck
 
 SET INSTALL_=
 set /p INSTALL_="Install GitPad to %PROGRAMDATA%\GitPad ? [y/n]"
-if /I "%INSTALL_:~0,1%" NEQ "y" Goto NotepadAsEditor
+rem if /I "%INSTALL_:~0,1%" NEQ "y" Goto NotepadAsEditor
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto Posh-Git
 
 rem powershell -Command "if (-not [Net.ServicePointManager]::SecurityProtocol.HasFlag([Net.SecurityProtocolType]::Tls12)) {[Net.ServicePointManager]::SecurityProtocol += [Net.SecurityProtocolType]::Tls12} (new-object System.Net.WebClient).Downloadfile('https://github.com/github/GitPad/releases/download/v1.4.0/Gitpad.zip', '%TEMP%\GitPad.zip');"
 rem powershell -Command "Expand-Archive '%TEMP%\GitPad.zip' -DestinationPath '%PROGRAMDATA%\GitPad' -Force"
