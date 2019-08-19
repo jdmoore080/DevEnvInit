@@ -12,8 +12,16 @@ powershell -Command "if ($PSVersionTable.PSVersion.Major -lt 5){exit 1}"
 if ERRORLEVEL 1 echo You need to install powershell 5 or later & goto Done
 
 powershell -Command "$pol = get-executionpolicy;if (@('Unrestricted','Bypass') -notcontains $pol){exit 1}"
-if ERRORLEVEL 1 echo Powershell must have an execution policy of unrestricted or bypass for this tool to work. & goto Done
+if NOT ERRORLEVEL 1 goto CheckEnv
+echo Powershell must have an execution policy of unrestricted or bypass for this tool to work.
 
+SET INSTALL_=
+set /p INSTALL_="Do you want to set the execution poloicy to Unrestricted for the current user? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto Done
+
+powershell "set-executionpolicy -ExecutionPolicy Unrestricted -Scope CurrentUser"
+
+:CheckEnv
 REM Set default value here.  If the variable exists, do not change.  If not, override in CONF_ section below
 SET CONF_CHOCO_TOOLS=%ChocolateyToolsLocation%
 REM Special case:  ChocolateyToolsLocation is a user env var, not a system env var.
@@ -396,7 +404,6 @@ del "%~dp0\tmpCustomInstall.ps1"
 
 powershell -ExecutionPolicy Unrestricted -Command "& '%~dp0\pscolor.ps1' '%USERPROFILE%\Desktop\PoshGitShell.lnk'"
 
-rem todo: make sure font set to 14pt Consolas
 Goto Done
 
 ::UtilityFunctions
