@@ -13,7 +13,8 @@ choco feature enable -n useRememberedArgumentsForUpgrades
 
 :: Install all the packages
 :::: Browsers
-rem choco upgrade googlechrome -y
+choco upgrade googlechrome -y
+choco upgrade firefox -y
 
 :::: Utilities + other
 choco upgrade 7zip.install -y
