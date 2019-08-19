@@ -16,7 +16,7 @@ if NOT ERRORLEVEL 1 goto CheckEnv
 echo Powershell must have an execution policy of unrestricted or bypass for this tool to work.
 
 SET INSTALL_=
-set /p INSTALL_="Do you want to set the execution poloicy to Unrestricted for the current user? [y/n]"
+set /p INSTALL_="Do you want to set the execution policy to Unrestricted for the current user? [y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto Done
 
 powershell "set-executionpolicy -ExecutionPolicy Unrestricted -Scope CurrentUser"
