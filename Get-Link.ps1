@@ -364,6 +364,15 @@ namespace Huddled.Interop
          _ConsoleProperties.dwWindowSize.X = x;
          _ConsoleProperties.dwWindowSize.Y = y;
       }
+      public void SetFont(string fontName, short point, bool bold)
+      {
+        _ConsoleProperties.nFont = 0;
+        _ConsoleProperties.dwFontSize.X = 0;
+        _ConsoleProperties.dwFontSize.Y = point;
+        _ConsoleProperties.uFontFamily = 54;
+        _ConsoleProperties.uFontWeight = (bold) ? 700U : 400U; //FW_BOLD, FW_NORMAL
+        _ConsoleProperties.FaceName = fontName;
+      }
       public uint CommandHistoryBufferSize
       {
          get { return _ConsoleProperties.uHistoryBufferSize; }
@@ -414,6 +423,10 @@ namespace Huddled.Interop
             _PopUpFill &= 0x00f0;
             _PopUpFill += value;
          }
+      }
+      public NT_CONSOLE_PROPS ConsoleProps
+      {
+        get {return _ConsoleProperties;}
       }
       // This does more than console colors
       private void SetConsoleColors()
