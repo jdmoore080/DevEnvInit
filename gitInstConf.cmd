@@ -350,7 +350,7 @@ if EXIST "%USERPROFILE%\Documents\WindowsPowerShell\Microsoft.PowerShell_profile
 )
 choco upgrade poshgit -y
 
-powershell -ExecutionPolicy Unrestricted -Command "if (get-service 'ssh-agent'-ErrorAction SilentlyContinue){$svc = get-service 'ssh-agent'; if ($svc.StartType -eq 'Disabled'){Set-Service ssh-agent -StartupType Manual}}"
+powershell -ExecutionPolicy Unrestricted -Command "if (get-service 'ssh-agent'-ErrorAction SilentlyContinue){$svc = get-service 'ssh-agent'; if ($svc.StartType -eq 'Disabled'){Set-Service ssh-agent -StartupType Manual}; git config --global core.sshcommand "C:/Windows/System32/OpenSSH/ssh.exe"}"
 
 Goto Posh-GitConfigure
 
