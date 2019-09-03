@@ -67,7 +67,7 @@ UpdateINI -s Settings ViewWhiteSpace 1 "%APPDATA%\Notepad2\Notepad2.ini"
 :notepad3
 SET INSTALL_=
 set /p INSTALL_="Install notepad3 ? [y/n]"
-if /I "%INSTALL_:~0,1%" NEQ "y" Goto sevenzip
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto Done
 choco upgrade notepad3 -y
 
 :::: configure
