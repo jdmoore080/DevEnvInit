@@ -134,7 +134,7 @@ SET INSTALL_=
 set /p INSTALL_="Install sysinternals ? [y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto Done
 REM sysinternals
-choco upgrade sysinternals -y
+choco upgrade -y sysinternals --params "/InstallDir:C:\sysinternals"
 
 goto Done
 
