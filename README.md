@@ -13,9 +13,9 @@ As far as I can tell, GH4W did the following:
 * create shortcuts
 * create a SSH key in github
 
-My utility does all of that (maybe not so well) except for the SSH key.  I use choclately to install Git (not portable) and Posh-Git
+My utility does all of that (maybe not so well) except for the SSH key.  I use chocolatey to install Git (not portable) and Posh-Git
 
-The GH4W put many of the settings in the system .gitconfig, which I don't really agress with, but I've copied for now
+The GH4W put many of the settings in the system .gitconfig, which I don't really agree with, but I've copied for now
 
 Some of the settings are my own preferences:
 * the posh-git color overrides
@@ -27,6 +27,16 @@ I've also configured things the way they are if you select the powershell option
 Biggest TODO is to handle upgrades to installed components
 git for windows can also now be installed to use schannel, making the bundling of the windows certs unnecessary
 
+TODO:
+* UX is bad. Maybe a front-end UI / checklist control to select what will be installed and prompt for anay data (e.g. name/email)
+* better handling of upgrades to installed components
+* ignore outdated packages not affected by this install script
+* other text editor options ? (notepad++, sublime, etc.)
+* stop using system settings
+* make sure posh-git prompt has font set properly  (bug: after launching the prompt, the console font resets on its own to a bad one)
+* git-bash support (maybe set prompt to match posh-git ala https://github.com/lyze/posh-git-sh)
+
+
 ## Credits
 * git logo/icon: https://git-scm.com/downloads/logos
 * powershell icon: ??
@@ -37,7 +47,7 @@ git for windows can also now be installed to use schannel, making the bundling o
 * BundleWinCerts: (Don't think I copied anyone's code, If you recognize something, let me know)
 
 * gitInstConf:
-  * choclatey install: https://chocolatey.org/docs/installation
+  * chocolatey install: https://chocolatey.org/docs/installation
   * set reg path: https://stackoverflow.com/questions/31547104/how-to-get-the-value-of-the-path
   -environment-variable-without-expanding-tokens
   * poke env: https://mnaoumov.wordpress.com/2012/07/24/powershell-add-directory-to-environment-path-variable/

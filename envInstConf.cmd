@@ -11,14 +11,24 @@ if %_ISADMIN% NEQ 1 echo Must run as admin^^!^^! & goto :Done
 :notepad2
 SET INSTALL_=
 set /p INSTALL_="Install notepad2 ? [y/n]"
-if /I "%INSTALL_:~0,1%" NEQ "y" Goto p4merge
-REM notepad2-mod
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto notepad3
 choco upgrade notepad2-mod -y
-REM configure
+:::: configure
 UpdateINI -s Settings SaveRecentFiles 1 "%APPDATA%\Notepad2\Notepad2.ini"
 UpdateINI -s Settings SaveFindReplace 1 "%APPDATA%\Notepad2\Notepad2.ini"
 UpdateINI -s Settings TabsAsSpaces 1 "%APPDATA%\Notepad2\Notepad2.ini"
 UpdateINI -s Settings ViewWhiteSpace 1 "%APPDATA%\Notepad2\Notepad2.ini"
+
+:notepad3
+SET INSTALL_=
+set /p INSTALL_="Install notepad3 ? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto p4merge
+choco upgrade notepad3 -y
+:::: configure
+UpdateINI -s Settings SaveRecentFiles 1 "%APPDATA%\Rizonesoft\Notepad3\Notepad3.ini"
+UpdateINI -s Settings SaveFindReplace 1 "%APPDATA%\Rizonesoft\Notepad3\Notepad3.ini"
+UpdateINI -s Settings TabsAsSpaces 1 "%APPDATA%\Rizonesoft\Notepad3\Notepad3.ini"
+UpdateINI -s Settings ViewWhiteSpace 1 "%APPDATA%\Rizonesoft\Notepad3\Notepad3.ini"
 
 :p4merge
 SET INSTALL_=
@@ -124,7 +134,7 @@ SET INSTALL_=
 set /p INSTALL_="Install sysinternals ? [y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto Done
 REM sysinternals
-choco upgrade sysinternals -y
+choco upgrade -y sysinternals --params "/InstallDir:C:\sysinternals"
 
 goto Done
 

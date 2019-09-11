@@ -40,6 +40,8 @@ $lnk.SetWindowSize(120,50)
 
 $lnk.CursorSize = 25
 
+$lnk.SetFont("Consolas", 14, $false);
+
 $lnk.Save()
 
 Write-Host "Updated $Path to powershell default colors"

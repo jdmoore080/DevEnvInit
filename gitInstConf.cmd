@@ -11,6 +11,17 @@ if %_ISADMIN% NEQ 1 echo Must run as admin^^!^^! & goto :Done
 powershell -Command "if ($PSVersionTable.PSVersion.Major -lt 5){exit 1}"
 if ERRORLEVEL 1 echo You need to install powershell 5 or later & goto Done
 
+powershell -Command "$pol = get-executionpolicy;if (@('Unrestricted','Bypass') -notcontains $pol){exit 1}"
+if NOT ERRORLEVEL 1 goto CheckEnv
+echo Powershell must have an execution policy of unrestricted or bypass for this tool to work.
+
+SET INSTALL_=
+set /p INSTALL_="Do you want to set the execution policy to Unrestricted for the current user? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto Done
+
+powershell "set-executionpolicy -ExecutionPolicy Unrestricted -Scope CurrentUser"
+
+:CheckEnv
 REM Set default value here.  If the variable exists, do not change.  If not, override in CONF_ section below
 SET CONF_CHOCO_TOOLS=%ChocolateyToolsLocation%
 REM Special case:  ChocolateyToolsLocation is a user env var, not a system env var.
@@ -33,12 +44,17 @@ REM only override CONF_CHOCO_TOOLS if chocolatey is not installed yet
 if .%CONF_CHOCO_TOOLS%. EQU .. SET CONF_CHOCO_TOOLS=C:\Tools
 
 REM USER and EMAIL should be blank (set XXX=) for official machines since you really should commit/push from those machines
-SET CONF_GIT_USER=Chris Conti
-SET CONF_GIT_EMAIL=cmconti@users.noreply.github.com
+SET CONF_GIT_DEFAULT_USER=Chris Conti
+SET CONF_GIT_DEFAULT_EMAIL=cmconti@users.noreply.github.com
 rem SET CONF_GIT_PROXY=http://proxy.foo.com:8080 rem proxy not needed anymore
 
 REM root folder in which you will call git clone.  Do not use a Drive root (e.g. C:\)
-SET CONF_POSHGIT_STARTDIR=c:\github
+SET CONF_POSHGIT_STARTDIR=c:\github-personal
+
+REM optional settings if a particular dir needs different git credentials for child repos
+SET CONF_GIT_SECONDARY_USER=Chris Conti
+SET CONF_GIT_SECONDARY_EMAIL=cmconti@users.noreply.github.com
+SET CONF_GIT_SECONDARY_PATH=C:/github-personal/
 
 REM End of block for users to edit
 REM *****
@@ -47,7 +63,7 @@ REM *****
 SET CONF_
 
 SET INSTALL_=
-set /p INSTALL_="Are the above CONF_ variables correct (if not, edit this script)? [y/n]"
+set /p INSTALL_="Are the above CONF_ variables correct (if not, edit this script)? n.b. _PERSONAL variables are optional and can be ignored[y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto Done
 
 
@@ -60,17 +76,23 @@ powershell -ExecutionPolicy Unrestricted -Command "choco -?" > NUL 2>&1
 if ERRORLEVEL 1 GOTO ChocoInstall
 
 echo Chocolatey is installed.
-echo Checking if chocolatey is outdated...
+echo Checking if chocolatey or other apps are outdated...
 
+echo.
+echo Apps Installed via chocolatey:
 choco list -l
+
+echo.
+echo Apps with pending chocolatey updates:
 choco outdated -l
 REM TODO: check for updates, system config settings need to be re-applied after update
 
 SET UPGRADE_=
-set /p UPGRADE_="If there are any outdated packages listed above, do you want to update them ? [y/n] (select n for git or poshgit as they will need to be reconfigured)"
+set /p UPGRADE_="If there are any outdated packages listed above, do you want to update them outside of this tool before continuing? [y/n] (select n for git or poshgit as they will need to be reconfigured)"
 if /I "%UPGRADE_:~0,1%" NEQ "y" Goto Git
 
-echo Use the command 'choco upgrade all -y'
+echo To update all apps, use the command 'choco upgrade all -y'
+echo When finished, re-run this script.
 Goto Done
 
 :ChocoInstall
@@ -120,7 +142,7 @@ SET PATH=%PATH%;%ProgramFiles%\Git\cmd
 
 SET INSTALL_=
 set /p INSTALL_="[Re]Configure git with github for windows defaults, (e.g. p4, beyond compare, and visual studio merge/diff parameters) ? [y/n]"
-if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitConfigureUser
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitConfigureDefaultUser
 
 REM Set some default git options
 git config --system diff.algorithm histogram
@@ -137,14 +159,28 @@ git config --system mergetool.bc3.trustexitcode true
 git config --system mergetool.p4.cmd "\"c:/program files/Perforce/p4merge.exe\" \"$BASE\" \"$LOCAL\" \"$REMOTE\" \"$MERGED\""
 git config --system mergetool.p4.trustexitcode false
 
-:GitConfigureUser
+:GitConfigureDefaultUser
 SET INSTALL_=
-set /p INSTALL_="[Re]Configure git with %CONF_GIT_USER%/%CONF_GIT_EMAIL% as the user/email ? [y/n]"
+set /p INSTALL_="[Re]Configure git with %CONF_GIT_DEFAULT_USER%/%CONF_GIT_DEFAULT_EMAIL% as the default user/email ? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto :GitConfigureSecondaryUser
+
+git config --global user.name "%CONF_GIT_DEFAULT_USER%"
+git config --global user.email %CONF_GIT_DEFAULT_EMAIL%
+rem git config --global http.proxy %CONF_GIT_PROXY%
+
+:GitConfigureSecondaryUser
+echo if you have a path (CONF_GIT_SECONDARY_PATH=%CONF_GIT_SECONDARY_PATH%) under which git credentials need to be different, you can set them here.
+SET INSTALL_=
+set /p INSTALL_="[Re]Configure git with %CONF_GIT_SECONDARY_USER%/%CONF_GIT_SECONDARY_EMAIL% as the secondary user/email for repos under %CONF_GIT_SECONDARY_PATH%? [y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitConfigureDiff
 
-git config --global user.name "%CONF_GIT_USER%"
-git config --global user.email %CONF_GIT_EMAIL%
-rem git config --global http.proxy %CONF_GIT_PROXY%
+rem todo: don't override .gitconfig-secondary
+UpdateINI -s user name "%CONF_GIT_SECONDARY_USER%" "%USERPROFILE%\.gitconfig-secondary"
+UpdateINI -s user email "%CONF_GIT_SECONDARY_EMAIL%" "%USERPROFILE%\.gitconfig-secondary"
+rem convert crlf to lf
+rem powershell "$file='%USERPROFILE%\.gitconfig-secondary';$text = [IO.File]::ReadAllText($file) -replace '`r`n', '`n';[IO.File]::WriteAllText($file, $text)"
+git config --global includeIf."gitdir:%CONF_GIT_SECONDARY_PATH%".path ".gitconfig-secondary"
+
 
 :GitConfigureDiff
 SET INSTALL_=
@@ -160,9 +196,9 @@ set /p INSTALL_="[Re]Configure git with useful log alias and updated colors (imp
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitConfigureCerts
 
 REM Git Log and color settings
-git config --global alias.lg "log --graph --pretty=format:'%C(red bold)%%h%%Creset -%%C(yellow bold)%%d%%Creset %%s%%Cgreen(%%cr) %%C(cyan)<%%an>%%Creset' --abbrev-commit --date=relative'"
+git config --global alias.lg "log --graph --pretty=format:'%%C(red bold)%%h%%Creset -%%C(yellow bold)%%d%%Creset %%s%%Cgreen(%%cr) %%C(cyan)<%%an>%%Creset' --abbrev-commit --date=relative"
 git config --global alias.lg2 "log --graph --pretty=format:'%%C(red bold)%%h%%Creset -%%C(blue bold)%%d%%Creset %%s%%Cgreen(%%cr) %%C(cyan)<%%an>%%Creset'"
-git config --global alias.lg3 "log --graph --pretty=format:'%%C(red bold)%%h%%Creset -%%C(blue bold)%%d%%Creset %%s%%C(cyan)<%%an>%%Creset'"
+git config --global alias.lg3 "log --graph --pretty=format:'%%C(red bold)%%h%%Creset -%%C(yellow bold)%%d%%Creset %%s%%C(cyan)<%%an>%%Creset'"
 git config --global color.status.changed "red bold"
 git config --global color.status.untracked "red bold"
 git config --global color.status.added "green bold"
@@ -203,20 +239,25 @@ REM alias.sync=!git pull && git push
 
 REM These settings aren't set, either because they are defaults, or I still need to decide
 REM     apply.whitespace=nowarn                 (default: warn)     OK
-REM     core.editor=gitpad                      (default: n/a)      Set below
+REM     core.editor=gitpad                      (default: n/a)      Set below (optionally)
 REM     core.preloadindex=true                  (default: true)     OK
 REM     color.ui=true                           (default: true)     OK
 REM     pack.packsizelimit=2g                   (default: <none>)   OK
-REM     filter.ghcleansmudge.clean=cat          (default: )     TBD
-REM     filter.ghcleansmudge.smudge=cat         (default: )     TBD
+REM     filter.ghcleansmudge.clean=cat          (default: )         TBD
+REM     filter.ghcleansmudge.smudge=cat         (default: )         TBD
 REM     push.default=upstream                   (default: simple)   OK
 
 REM these are set, which weren't by GH4W:
-REM     http.sslbackend=openssl                     (default: )     TBD
-REM     http.proxy=http://proxy.foo.com:8080   (default: n/a)          OK (set above)
-REM     core.hidedotfiles=dotGitOnly                (default: dotGitOnly)   OK
+REM     http.sslbackend=openssl                (default: )          TBD
+REM     http.proxy=http://proxy.foo.com:8080   (default: n/a)       OK (set above)
+REM     core.hidedotfiles=dotGitOnly           (default: dotGitOnly)   OK
 
 :GitPad
+rem https://stackoverflow.com/questions/10564/how-can-i-set-up-an-editor-to-work-with-git-on-windows
+rem as of git for windows 2.5.3, notepad can be used as the editor (see https://github.com/git-for-windows/git/releases/tag/v2.5.3.windows.1)
+rem as of git for windows 2.16, git will warn if it is waiting for editor to close
+rem git 2.19.2 fixed a problem with wrapping that showed up when using notepad2 (?)
+rem ** just tested with git 2.22.0.  using notepad 3 still produces some weird messages in the UI and on the commandline, so disable for now.
 REM GitPad 1.4 not available on Chocloatey
 REM GitPad 1.4 (official) targets .NET 2, so install modified version that targets .NET 4.5
 
@@ -240,6 +281,7 @@ if exist "%PROGRAMDATA%\GitPad\GitPad.exe" Goto GitPadConfigureCheck
 
 SET INSTALL_=
 set /p INSTALL_="Install GitPad to %PROGRAMDATA%\GitPad ? [y/n]"
+rem if /I "%INSTALL_:~0,1%" NEQ "y" Goto NotepadAsEditor
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto Posh-Git
 
 rem powershell -Command "if (-not [Net.ServicePointManager]::SecurityProtocol.HasFlag([Net.SecurityProtocolType]::Tls12)) {[Net.ServicePointManager]::SecurityProtocol += [Net.SecurityProtocolType]::Tls12} (new-object System.Net.WebClient).Downloadfile('https://github.com/github/GitPad/releases/download/v1.4.0/Gitpad.zip', '%TEMP%\GitPad.zip');"
@@ -273,6 +315,18 @@ git config --system core.editor gitpad
 
 goto Posh-Git
 
+:NotepadAsEditor
+goto Posh-Git
+SET INSTALL_=
+set /p INSTALL_="Configure Notepad as the git editor ? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto Posh-Git
+
+git config --system core.editor notepad
+
+rem todo:
+rem notepad++ (git config --global core.editor "'C:/Program Files (x86)/Notepad++/notepad++.exe' -multiInst -notabbar -nosession -noPlugin")
+goto Posh-Git
+
 :Posh-Git
 
 choco outdated | find /i "poshgit|"
@@ -296,7 +350,7 @@ if EXIST "%USERPROFILE%\Documents\WindowsPowerShell\Microsoft.PowerShell_profile
 )
 choco upgrade poshgit -y
 
-powershell -ExecutionPolicy Unrestricted -Command "if (get-service 'ssh-agent'-ErrorAction SilentlyContinue){$svc = get-service 'ssh-agent'; if ($svc.StartType -eq 'Disabled'){Set-Service ssh-agent -StartupType Manual}}"
+powershell -ExecutionPolicy Unrestricted -Command "if (get-service 'ssh-agent'-ErrorAction SilentlyContinue){$svc = get-service 'ssh-agent'; if ($svc.StartType -eq 'Disabled'){Set-Service ssh-agent -StartupType Manual}; git config --global core.sshcommand "C:/Windows/System32/OpenSSH/ssh.exe"}"
 
 Goto Posh-GitConfigure
 
@@ -370,7 +424,6 @@ del "%~dp0\tmpCustomInstall.ps1"
 
 powershell -ExecutionPolicy Unrestricted -Command "& '%~dp0\pscolor.ps1' '%USERPROFILE%\Desktop\PoshGitShell.lnk'"
 
-rem todo: make sure font set to 14pt Consolas
 Goto Done
 
 ::UtilityFunctions
