@@ -36,34 +36,42 @@ if .%CONF_CHOCO_TOOLS%. EQU .. (
   )
 )
 
-REM set/override CONF_ variables here:
 REM *****
 REM *****
+REM set default CONF_ variables here:
 
 REM only override CONF_CHOCO_TOOLS if chocolatey is not installed yet
 if .%CONF_CHOCO_TOOLS%. EQU .. SET CONF_CHOCO_TOOLS=C:\Tools
 
-REM USER and EMAIL should be blank (set XXX=) for official machines since you really should commit/push from those machines
-SET CONF_GIT_DEFAULT_USER=Chris Conti
-SET CONF_GIT_DEFAULT_EMAIL=cmconti@users.noreply.github.com
-rem SET CONF_GIT_PROXY=http://proxy.foo.com:8080 rem proxy not needed anymore
+rem if http proxy is needed for git, set this variable
+rem SET CONF_GIT_PROXY=http://proxy.foo.com:8080
+SET CONF_GIT_PROXY=
 
 REM root folder in which you will call git clone.  Do not use a Drive root (e.g. C:\)
 SET CONF_POSHGIT_STARTDIR=c:\github-personal
 
+REM USER and EMAIL can be blank (set XXX=) if you want to force prompting
+
+REM standard user info for git operations
+SET CONF_GIT_DEFAULT_USER=John Doe
+SET CONF_GIT_DEFAULT_EMAIL=johndoe@users.noreply.github.com
+
 REM optional settings if a particular dir needs different git credentials for child repos
-SET CONF_GIT_SECONDARY_USER=Chris Conti
-SET CONF_GIT_SECONDARY_EMAIL=cmconti@users.noreply.github.com
+SET CONF_GIT_SECONDARY_USER=Jane Doe
+SET CONF_GIT_SECONDARY_EMAIL=janedoe@users.noreply.github.com
 SET CONF_GIT_SECONDARY_PATH=C:/github-personal/
 
-REM End of block for users to edit
+REM End of default CONF_ variables
 REM *****
 REM *****
+
+REM User overrides of CONF_
+if exist "%~dp0\gitInstPersonal.cmd" call "%~dp0\gitInstPersonal.cmd"
 
 SET CONF_
 
 SET INSTALL_=
-set /p INSTALL_="Are the above CONF_ variables correct (if not, edit this script)? n.b. _PERSONAL variables are optional and can be ignored[y/n]"
+set /p INSTALL_="Are the above CONF_ variables correct (if not, edit '%~dp0\gitInstPersonal.cmd')? [y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto Done
 
 
@@ -139,6 +147,9 @@ REM Add to current path
 SET PATH=%PATH%;%ProgramFiles%\Git\cmd
 
 :GitConfigure
+if .%CONF_GIT_PROXY%. NEQ .. (
+  git config --global http.proxy %CONF_GIT_PROXY%
+)
 
 SET INSTALL_=
 set /p INSTALL_="[Re]Configure git with github for windows defaults, (e.g. p4, beyond compare, and visual studio merge/diff parameters) ? [y/n]"
@@ -160,15 +171,18 @@ git config --system mergetool.p4.cmd "\"c:/program files/Perforce/p4merge.exe\" 
 git config --system mergetool.p4.trustexitcode false
 
 :GitConfigureDefaultUser
+if .%CONF_GIT_PROXY%. EQU .. Goto :GitConfigureSecondaryUser
+
 SET INSTALL_=
 set /p INSTALL_="[Re]Configure git with %CONF_GIT_DEFAULT_USER%/%CONF_GIT_DEFAULT_EMAIL% as the default user/email ? [y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto :GitConfigureSecondaryUser
 
 git config --global user.name "%CONF_GIT_DEFAULT_USER%"
 git config --global user.email %CONF_GIT_DEFAULT_EMAIL%
-rem git config --global http.proxy %CONF_GIT_PROXY%
 
 :GitConfigureSecondaryUser
+if .%CONF_GIT_SECONDARY_USER%. EQU .. Goto :GitConfigureDiff
+
 echo if you have a path (CONF_GIT_SECONDARY_PATH=%CONF_GIT_SECONDARY_PATH%) under which git credentials need to be different, you can set them here.
 SET INSTALL_=
 set /p INSTALL_="[Re]Configure git with %CONF_GIT_SECONDARY_USER%/%CONF_GIT_SECONDARY_EMAIL% as the secondary user/email for repos under %CONF_GIT_SECONDARY_PATH%? [y/n]"
