@@ -68,7 +68,9 @@ REM *****
 REM User overrides of CONF_
 if exist "%~dp0\gitInstPersonal.cmd" call "%~dp0\gitInstPersonal.cmd"
 
+echo.
 SET CONF_
+echo.
 
 SET INSTALL_=
 set /p INSTALL_="Are the above CONF_ variables correct (if not, edit '%~dp0\gitInstPersonal.cmd')? [y/n]"
@@ -84,24 +86,26 @@ powershell -ExecutionPolicy Unrestricted -Command "choco -?" > NUL 2>&1
 if ERRORLEVEL 1 GOTO ChocoInstall
 
 echo Chocolatey is installed.
-echo Checking if chocolatey or other apps are outdated...
+rem echo Checking if chocolatey or other apps are outdated...
 
-echo.
-echo Apps Installed via chocolatey:
-choco list -l
+rem echo.
+rem echo Apps Installed via chocolatey:
+rem choco list -l
 
-echo.
-echo Apps with pending chocolatey updates:
-choco outdated -l
+rem echo.
+rem echo Apps with pending chocolatey updates:
+rem choco outdated -l
 REM TODO: check for updates, system config settings need to be re-applied after update
 
-SET UPGRADE_=
-set /p UPGRADE_="If there are any outdated packages listed above, do you want to update them outside of this tool before continuing? [y/n] (select n for git or poshgit as they will need to be reconfigured)"
-if /I "%UPGRADE_:~0,1%" NEQ "y" Goto Git
+rem SET UPGRADE_=
+rem set /p UPGRADE_="If there are any outdated packages listed above, do you want to update them outside of this tool before continuing? [y/n] (select n for git or poshgit as they will need to be reconfigured)"
+rem if /I "%UPGRADE_:~0,1%" NEQ "y" Goto Git
 
-echo To update all apps, use the command 'choco upgrade all -y'
-echo When finished, re-run this script.
-Goto Done
+rem echo To update all apps, use the command 'choco upgrade all -y'
+rem echo When finished, re-run this script.
+rem Goto Done
+
+Goto Git
 
 :ChocoInstall
 echo Chocolatey is not installed.
@@ -129,6 +133,8 @@ Goto Git
 REM see https://chocolatey.org/packages/git.install for all options
 SET GIT_OPT=/GitOnlyOnPath /WindowsTerminal /NoShellIntegration /SChannel
 
+echo.
+echo Checking if git is installed...
 choco outdated | find /i "git.install|"
 if not errorlevel 1 (goto GitInstall)
 
@@ -136,7 +142,7 @@ git --version > NUL
 if NOT ERRORLEVEL 1 GOTO GitConfigure
 
 :GitInstall
-
+echo.
 SET INSTALL_=
 set /p INSTALL_="Install/Upgrade Git in %ProgramFiles%\Git ? [y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitConfigure
@@ -150,7 +156,7 @@ SET PATH=%PATH%;%ProgramFiles%\Git\cmd
 if .%CONF_GIT_PROXY%. NEQ .. (
   git config --global http.proxy %CONF_GIT_PROXY%
 )
-
+echo.
 SET INSTALL_=
 set /p INSTALL_="[Re]Configure git with github for windows defaults, (e.g. p4, beyond compare, and visual studio merge/diff parameters) ? [y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitConfigureDefaultUser
@@ -171,8 +177,8 @@ git config --system mergetool.p4.cmd "\"c:/program files/Perforce/p4merge.exe\" 
 git config --system mergetool.p4.trustexitcode false
 
 :GitConfigureDefaultUser
-if .%CONF_GIT_PROXY%. EQU .. Goto :GitConfigureSecondaryUser
-
+if "%CONF_GIT_DEFAULT_USER%" EQU "" Goto :GitConfigureSecondaryUser
+echo.
 SET INSTALL_=
 set /p INSTALL_="[Re]Configure git with %CONF_GIT_DEFAULT_USER%/%CONF_GIT_DEFAULT_EMAIL% as the default user/email ? [y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto :GitConfigureSecondaryUser
@@ -181,8 +187,8 @@ git config --global user.name "%CONF_GIT_DEFAULT_USER%"
 git config --global user.email %CONF_GIT_DEFAULT_EMAIL%
 
 :GitConfigureSecondaryUser
-if .%CONF_GIT_SECONDARY_USER%. EQU .. Goto :GitConfigureDiff
-
+if "%CONF_GIT_SECONDARY_USER%" EQU "" Goto :GitConfigureDiff
+echo.
 echo if you have a path (CONF_GIT_SECONDARY_PATH=%CONF_GIT_SECONDARY_PATH%) under which git credentials need to be different, you can set them here.
 SET INSTALL_=
 set /p INSTALL_="[Re]Configure git with %CONF_GIT_SECONDARY_USER%/%CONF_GIT_SECONDARY_EMAIL% as the secondary user/email for repos under %CONF_GIT_SECONDARY_PATH%? [y/n]"
@@ -197,6 +203,7 @@ git config --global includeIf."gitdir:%CONF_GIT_SECONDARY_PATH%".path ".gitconfi
 
 
 :GitConfigureDiff
+echo.
 SET INSTALL_=
 set /p INSTALL_="[Re]Configure git with p4merge as merge/difftool ? [y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitConfigureLogAndColor
@@ -205,6 +212,7 @@ git config --global diff.tool p4
 git config --global merge.tool p4
 
 :GitConfigureLogAndColor
+echo.
 SET INSTALL_=
 set /p INSTALL_="[Re]Configure git with useful log alias and updated colors (improves readability of some dull-colored defaults) ? [y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitConfigureCerts
@@ -219,6 +227,7 @@ git config --global color.status.added "green bold"
 git config --global color.branch.remote "red bold"
 
 :GitConfigureCerts
+echo.
 SET INSTALL_=
 set /p INSTALL_="Use OpenSSL and refresh CA cert bundle with certs from the windows cert store ? [y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitConfigureSChannel
@@ -232,6 +241,7 @@ git config --system http.sslcainfo "C:/Program Files/Git/mingw64/ssl/certs/ca-bu
 goto GitPad
 
 :GitConfigureSChannel
+echo.
 SET INSTALL_=
 set /p INSTALL_="Use schannel ? [y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto GitPad
@@ -292,7 +302,7 @@ goto GitPadAddToPath
 
 :GitPadInstall
 if exist "%PROGRAMDATA%\GitPad\GitPad.exe" Goto GitPadConfigureCheck
-
+echo.
 SET INSTALL_=
 set /p INSTALL_="Install GitPad to %PROGRAMDATA%\GitPad ? [y/n]"
 rem if /I "%INSTALL_:~0,1%" NEQ "y" Goto NotepadAsEditor
@@ -316,7 +326,7 @@ call :broadcastSettingsChange
 goto GitPadConfigure
 
 :GitPadConfigureCheck
-
+echo.
 git config -l | find "core.editor" > NUL
 if NOT ERRORLEVEL 1 Goto Posh-Git
 SET INSTALL_=
@@ -331,6 +341,7 @@ goto Posh-Git
 
 :NotepadAsEditor
 goto Posh-Git
+echo.
 SET INSTALL_=
 set /p INSTALL_="Configure Notepad as the git editor ? [y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto Posh-Git
@@ -350,7 +361,7 @@ powershell -ExecutionPolicy Unrestricted -Command "if (test-path '%CONF_CHOCO_TO
 if ERRORLEVEL 1 Goto Posh-GitConfigure
 
 :Posh-GitInstall
-
+echo.
 SET INSTALL_=
 set /p INSTALL_="Install Posh-Git to %CONF_CHOCO_TOOLS%\poshgit (close any running instances if upgrade is needed)? [y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto Posh-GitConfigure
@@ -369,7 +380,7 @@ powershell -ExecutionPolicy Unrestricted -Command "if (get-service 'ssh-agent'-E
 Goto Posh-GitConfigure
 
 :Posh-GitConfigure
-
+echo.
 SET INSTALL_=
 set /p INSTALL_="[Re]Configure Posh-Git colors (improves readability of some dull-colored defaults) ? [y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto Shortcut
@@ -414,7 +425,7 @@ rem create powershell shortcut on desktop pointing to install path
 :Shortcut
 
 rem if exist "%USERPROFILE%\Desktop\PoshGitShell.lnk" Goto Done
-
+echo.
 SET INSTALL_=
 set /p INSTALL_="[Re]Create Posh-Git shell shortcut on desktop (select y if poshgit was upgraded)? [y/n]"
 if /I "%INSTALL_:~0,1%" NEQ "y" Goto Done
@@ -467,7 +478,7 @@ echo $result = [UIntPtr]::Zero
 echo [Win32.Nativemethods]::SendMessageTimeout($HWND_BROADCAST, $WM_SETTINGCHANGE, [UIntPtr]::Zero, 'Environment', 2, 5000, [ref] $result^);
 )
 
-powershell -ExecutionPolicy Unrestricted -Command "& '%~dp0\tmpCustomInstall.ps1'"
+powershell -ExecutionPolicy Unrestricted -Command "& '%~dp0\tmpCustomInstall.ps1'" >nul
 del "%~dp0\tmpCustomInstall.ps1"
 goto :eof
 
