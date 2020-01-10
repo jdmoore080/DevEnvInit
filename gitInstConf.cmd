@@ -449,6 +449,8 @@ del "%~dp0\tmpCustomInstall.ps1"
 
 powershell -ExecutionPolicy Unrestricted -Command "& '%~dp0\pscolor.ps1' '%USERPROFILE%\Desktop\PoshGitShell.lnk'"
 
+copy "%USERPROFILE%\Desktop\PoshGitShell.lnk" "%APPDATA%\Microsoft\Internet Explorer\Quick Launch"
+
 Goto Done
 
 ::UtilityFunctions
