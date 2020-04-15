@@ -125,9 +125,16 @@ choco upgrade activeperl --version 5.24.2.2403 -y
 :putty
 SET INSTALL_=
 set /p INSTALL_="Install putty ? [y/n]"
-if /I "%INSTALL_:~0,1%" NEQ "y" Goto sysinternals
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto hashdeep
 REM putty
 choco upgrade putty -y
+
+:hashdeep
+SET INSTALL_=
+set /p INSTALL_="Install hashdeep ? [y/n]"
+if /I "%INSTALL_:~0,1%" NEQ "y" Goto sysinternals
+REM hashdeep
+choco upgrade hashdeep -y
 
 :sysinternals
 SET INSTALL_=
